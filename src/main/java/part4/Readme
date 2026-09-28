@@ -1,0 +1,32 @@
+Files
+-----
+Clinic.java  -- the harness (port of clinic.py), plus Toolsets.BAD/GOOD
+                (port of toolsets.py)
+Mine.java    -- your toolset to rewrite (port of mine.py), a separate
+                top-level class in the same default package as Clinic
+
+Build & run
+------------
+javac Clinic.java Mine.java
+java Clinic --tools bad
+java Clinic --tools good
+java Clinic --tools bad mine
+java Clinic --tools bad good mine
+
+Requirements at runtime (same as the Python original):
+  - a .env file in the working directory with GATEWAY_API_KEY (and optionally
+    MODEL, BUDGET_USD, GATEWAY_URL)
+  - goals.json in the working directory (or pass --goals path/to/goals.json)
+  - python3 on PATH, plus the aira-ops repo checkout, so ThrowawayOps can
+    launch day3-integration-security/aira-ops/aira_ops.py the same way
+    clinic.py did
+
+Not yet done:
+  - Mine.java's TOOLS/run are still the "start from BAD" starting point,
+    same as mine.py before you rewrite it. Follow the checklist in the
+    file's header comment.
+
+Note: this was authored without a working javac in the conversion sandbox
+(the environment's package mirror couldn't install a JDK), so it has been
+reviewed by hand rather than compiled. Run `javac Clinic.java Mine.java`
+yourself as a first check before relying on it.

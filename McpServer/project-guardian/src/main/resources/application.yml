@@ -1,0 +1,34 @@
+spring:
+  main:
+    banner-mode: off
+    web-application-type: none
+  ai:
+    mcp:
+      server:
+        name: project-guardian
+        version: 0.1.0
+        stdio: true
+        type: SYNC
+        annotation-scanner:
+          enabled: true
+
+# stdio transport uses stdout for the JSON-RPC stream itself - any console
+# logging would corrupt every message the client reads. Log to a file only.
+logging:
+  pattern:
+    file: "%d{ISO8601} %-5level %logger{36} - %msg%n"
+  file:
+    name: ${GUARDIAN_LOG_FILE:project-guardian.log}
+  threshold:
+    console: OFF
+
+guardian:
+  # Working-directory root the server is confined to - it refuses to touch
+  # any path outside this root (see WorkspaceGuard). Set via env when
+  # launching the server pointed at a real target project.
+  workspace-root: ${GUARDIAN_WORKSPACE_ROOT:.}
+  rules-file: ${GUARDIAN_RULES_FILE:classpath:guardian-rules.yaml}
+  process:
+    mvn-test-timeout-seconds: ${GUARDIAN_MVN_TEST_TIMEOUT:120}
+    mvn-package-timeout-seconds: ${GUARDIAN_MVN_PACKAGE_TIMEOUT:180}
+    git-timeout-seconds: ${GUARDIAN_GIT_TIMEOUT:30}

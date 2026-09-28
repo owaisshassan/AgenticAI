@@ -1,0 +1,51 @@
+{
+  "agentName": "test-enforcer-agent",
+  "description": "Enforces JUnit test coverage on *Service classes: discovers services with no test AND services whose existing test is missing coverage for some public method, generates/extends a test, runs it for real, scores it against a coverage threshold, self-corrects a failing test by analyzing the real Surefire report (bounded retries), and requires human approval before every write.",
+  "foundationModel": "anthropic.claude-sonnet-4-5-20250929-v1:0",
+  "instruction": "You enforce test-case writing on services. For a service with no test: generate a complete JUnit 5 test covering happy path, edge cases, and documented exceptions. For a service that already has a test but is missing coverage for some public method: extend the existing test with new cases for exactly the missing methods, keeping every existing test method unchanged. If a test run fails: read the real failure (method, exception type, message, stack excerpt) from the Surefire report and correct the TEST's own expectations/setup/assertions to match the service's real, documented behavior - you have no ability to modify the service under test, so never propose a fix that assumes the service will change. Retry a correction up to 3 times; if it still fails, stop and report the failure structurally rather than trying again or weakening the test. Never write a test file without explicit human approval. Never touch source files - only *Test.java files.",
+  "guardrails": {
+    "inputValidation": [
+      "target must be a .java source file",
+      "class name must be a valid Java identifier",
+      "path must not contain '..' (no traversal outside the source tree)"
+    ],
+    "outputValidation": [
+      "generated/extended/corrected test must contain at least one @Test method",
+      "generated/extended/corrected test must contain at least one assertion",
+      "generated/extended/corrected test must not call Runtime.exec/ProcessBuilder/System.exit or delete real files",
+      "generated/extended/corrected test source must not exceed 200000 bytes"
+    ],
+    "writeScope": "src/test/java only - refuses any write outside the test root, and any file not named *Test.java/*Tests.java"
+  },
+  "missingCoverageDetection": {
+    "scope": "services that already have a test file",
+    "method": "scans the service source for public methods and checks whether the existing test source calls each one; any public method never referenced is flagged missing",
+    "outcome": "MISSING_METHODS_ADDED_AND_PASSED / MISSING_METHODS_ADDED_BUT_EVAL_FAILED if anything was missing, ALREADY_COMPLETE (no generation, no approval prompt) if nothing was"
+  },
+  "evaluation": {
+    "method": "runs `mvn -Dtest=<Class>Test test` for real, then reads target/site/jacoco/jacoco.xml",
+    "gates": [
+      "test suite passes (exit code 0, not a timeout)",
+      "line coverage on the target class >= minCoveragePercent (default 80)"
+    ]
+  },
+  "selfCorrection": {
+    "trigger": "evaluation fails after a write (new test, or extended test)",
+    "method": "reads the real Surefire XML report (target/surefire-reports/TEST-<Class>.xml) for the exact failing method/type/message/stack, sends that plus the current test and the service source to the generator for a correction, re-checks output guardrails, requests human approval again, overwrites, and re-evaluates",
+    "maxAttempts": 3,
+    "onExhaustion": "stops and reports WRITTEN_BUT_EVAL_FAILED / MISSING_METHODS_ADDED_BUT_EVAL_FAILED with the correction attempt count - never loops indefinitely, never weakens the test to force a pass",
+    "constraint": "a correction may only ever change the test file - it is never allowed to propose or assume a change to the service under test"
+  },
+  "trace": {
+    "format": "newline-delimited JSON, one TraceEvent per pipeline step",
+    "fields": ["timestamp", "step", "status", "detail"],
+    "steps": ["discover", "detect_missing_methods", "guardrail_input", "generate", "guardrail_output", "human_approval", "write", "evaluate", "analyze_failure", "correct"],
+    "uploadTarget": "s3://<bucket>/<keyPrefix>/<trace-file>.ndjson"
+  },
+  "humanApproval": {
+    "required": true,
+    "gatesActions": ["test_writer.write", "test_writer.overwrite (missing-method extension)", "test_writer.overwrite (failure correction)"],
+    "failClosed": true,
+    "note": "no terminal / no response -> refused, never defaults to approved; a refusal at any of these three points stops the pipeline for that service"
+  }
+}

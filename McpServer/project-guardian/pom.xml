@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.1.1</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.aira</groupId>
+    <artifactId>project-guardian</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <name>project-guardian</name>
+    <description>
+        MCP server: convention enforcement and test-before-build gating for a
+        target Spring Boot project. Standalone Maven module - deliberately NOT
+        under this repo's outer src/main/java, so its own build never mixes
+        with the outer pom's classpath (see README.md "Why this location").
+    </description>
+
+    <properties>
+        <java.version>21</java.version>
+        <!-- Spring AI 2.0.1 is the current GA line as of 2026-09 (2.1.0-M1 is a
+             milestone, not GA) - confirmed against Maven Central metadata, not
+             recalled from training. Re-check before bumping. -->
+        <spring-ai.version>2.0.1</spring-ai.version>
+        <archunit.version>1.5.1</archunit.version>
+        <jgit.version>7.8.0.202609011348-r</jgit.version>
+        <jacoco.version>0.8.15</jacoco.version>
+        <snakeyaml.version>2.5</snakeyaml.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- MCP server, stdio transport, annotation-based tools (@McpTool etc.) -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
+        </dependency>
+        <!-- Pinned at compile scope: spring-ai-mcp transitively pulls mcp:2.0.0,
+             which needs mcp-core:2.0.0 at compile scope. Without this explicit
+             compile-scope declaration, Maven's nearest-wins conflict resolution
+             picks up our (test-scoped) mcp-core:2.0.1 declaration below and the
+             real runtime classes (e.g. McpServerFeatures$AsyncToolSpecification)
+             end up missing from the packaged jar - NoClassDefFoundError at
+             startup. Pin the version to match spring-ai's BOM. -->
+        <dependency>
+            <groupId>io.modelcontextprotocol.sdk</groupId>
+            <artifactId>mcp-core</artifactId>
+            <version>${spring-ai.version}</version>
+        </dependency>
+
+        <!-- Rule loading: guardian-rules.yaml -->
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+            <version>${snakeyaml.version}</version>
+        </dependency>
+
+        <!-- Layering/structural checks -->
+        <dependency>
+            <groupId>com.tngtech.archunit</groupId>
+            <artifactId>archunit</artifactId>
+            <version>${archunit.version}</version>
+        </dependency>
+
+        <!-- Changed-file detection -->
+        <dependency>
+            <groupId>org.eclipse.jgit</groupId>
+            <artifactId>org.eclipse.jgit</artifactId>
+            <version>${jgit.version}</version>
+        </dependency>
+
+        <!-- Test support -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- mcp-core is already on the compile classpath (see above); the E2E
+             tests use its client classes (McpClient, StdioClientTransport)
+             directly to drive the packaged jar over the real protocol. -->
+        <dependency>
+            <groupId>io.modelcontextprotocol.sdk</groupId>
+            <artifactId>mcp-test</artifactId>
+            <version>${spring-ai.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- JacksonMcpJsonMapper - the client-side JSON mapper StdioClientTransport
+             needs; the server side gets its mapper from Spring AI's autoconfig,
+             but a bare McpSyncClient in a test has no Spring context to source
+             one from. Excludes its transitive json-schema-validator:2.0.4:
+             the main runtime already needs json-schema-validator:3.0.0 (via
+             mcp-json-jackson3, the server-side mapper) - without this
+             exclusion, Maven's nearest-wins resolution picks 2.0.4 for
+             EVERYTHING (test scope widens to compile), and the server's own
+             DefaultJsonSchemaValidator (built against the 3.0.0 API shape)
+             fails at startup with NoSuchMethodError. We only need
+             JacksonMcpJsonMapper itself from this artifact, not its schema
+             validator classes, so excluding is safe. -->
+        <dependency>
+            <groupId>io.modelcontextprotocol.sdk</groupId>
+            <artifactId>mcp-json-jackson2</artifactId>
+            <version>${spring-ai.version}</version>
+            <scope>test</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.networknt</groupId>
+                    <artifactId>json-schema-validator</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

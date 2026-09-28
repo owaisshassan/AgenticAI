@@ -1,0 +1,31 @@
+layers:
+  - name: controller
+    package: "**/controller/**"
+    mayCallLayers: [service]
+  - name: service
+    package: "**/service/**"
+    mayCallLayers: [repository]
+  - name: repository
+    package: "**/repository/**"
+    mayCallLayers: []
+  - name: domain
+    package: "**/domain/**"
+    mayCallLayers: []
+
+naming:
+  service: "^[A-Z][A-Za-z0-9]*Service$"
+  repository: "^[A-Z][A-Za-z0-9]*Repository$"
+  controller: "^[A-Z][A-Za-z0-9]*Controller$"
+  test: "^${className}Tests?$"
+
+requiredAnnotations:
+  service: ["org.springframework.stereotype.Service"]
+  repository: ["org.springframework.data.jpa.repository.JpaRepository"]
+  entity: ["jakarta.persistence.Entity"]
+
+testGate:
+  requireTestForPackages: ["**/service/**", "**/controller/**"]
+  skipPackages: ["**/dto/**", "**/config/**"]
+  minCoveragePercent: 80
+  minAssertionsPerTestClass: 1
+  forbidDisabledWithoutReason: true

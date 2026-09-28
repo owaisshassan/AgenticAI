@@ -1,0 +1,15 @@
+[2026-09-19 13:05:00] FAILURE — HUMAN INTERVENTION REQUIRED
+Module: src/main/java/part1/RunnerUtil.java
+Tests written: src/test/java/part1/RunnerUtilTest.java
+Result: 8/9 passed, 1 failed
+Failed test: callGateway_liveEndpoint_returnsSuccessfulResponse
+Reason: IOException — Gateway call failed: 403 - key_model_access_denied. The configured API key only permits models ['claude-sonnet', 'claude-opus', 'claude-haiku']; the test requested 'claude-sonnet-5'.
+Classification: bad test assumption (wrong model identifier used in the test's AgentRequest), not a source bug. callGateway's own logic (status-code check, exception on non-2xx) behaved correctly.
+Action: awaiting human decision — no source code changes made. Test file also left as-is pending decision (per plan.md, a failing test is not silently altered to force a pass).
+[2026-09-19 13:15:26] SUCCESS
+Module: src/main/java/part1/RunnerUtil.java
+Tests written: src/test/java/part1/RunnerUtilTest.java
+Result: 9/9 passed
+Correction attempts: 1
+  Attempt 1: fixed wrong model name in integration test fixture (used 'claude-sonnet-5', gateway API key only allows 'claude-sonnet', 'claude-opus', 'claude-haiku') — changed to 'claude-sonnet' — rerun passed.
+Coverage notes: extractAssistantText (multi-block concatenation, single block, empty content array, missing content field, non-array content field, block without text field, invalid JSON throws IOException, null input throws exception); callGateway (live integration test against gateway endpoint, since no DI seam exists for HttpClient without modifying source).
