@@ -289,8 +289,8 @@ public class TestEnforcerAgent {
 
     public static void main(String[] args) throws Exception {
         Path projectRoot = Path.of(".").toAbsolutePath().normalize();
-        Path sourceRoot = projectRoot.resolve("src/main/java/part1");
-        Path testRoot = projectRoot.resolve("src/test/java/part1");
+        Path sourceRoot = projectRoot.resolve(Properties.testCasesSourcePath);
+        Path testRoot = projectRoot.resolve(Properties.testCasesDestinationPath);
         Path traceFile = projectRoot.resolve("Lab5-trace-" + Instant.now().toEpochMilli() + ".ndjson");
 
         TestEnforcerAgent agent = new TestEnforcerAgent(
